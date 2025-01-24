@@ -4,3 +4,9 @@ output
 output_without_masking
 feed.csv
 errored_ids.txt
+data.xlsx
+chromedriver.exe
+output_dir_pdf
+screenshot_saved_files
+texput.log
+city
