@@ -11,12 +11,16 @@ from selenium.webdriver.chrome.service import Service
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 # from bs4 import BeautifulSoup
 from PIL import Image
+from logger import log_error
+
+__all__ = ["Crawler"]
+
 
 def make_url(tracking_number):
     base_url = 'https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1='
     return f"{base_url}{tracking_number}&displayHeader=s"
 
-class crawler():
+class Crawler():
     def __init__(self):
         service = Service()
         chrome_options = webdriver.ChromeOptions()
@@ -33,9 +37,31 @@ class crawler():
     def kill(self):
         self.driver.quit()
 
-    def save_pdf_file_withhout_masking(self, tracking_number, key1, key2, selector, output_path):
+    def save_pdf_file_withhout_masking(self, index, tracking_number, key1, key2, selector, output_path):
         url = make_url(tracking_number)
         self.driver.get(url)
+        # 조회 실패 메시지가 있는지 확인
+
+        # 필수 selector 값 확인
+        selectors = ["#print > table > tbody > tr > td:nth-child(2)",
+                     "#print > table > tbody > tr > td:nth-child(3)",]
+
+        for sel in selectors:
+            try:
+                element = WebDriverWait(self.driver, 5).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, sel))
+                )
+                if not element.text.strip():  # 값이 비어있다면
+                    log_error(index, tracking_number, key2, f"등기번호 13자리 수는 유효하나 보내는 분/접수일자와 받는 분이 조회되지 않습니다.")
+                    time.sleep(0.5)
+                    return False
+
+            except TimeoutException:
+                if self.log_error:
+                    log_error(index, tracking_number, key2, f"Element not found: {sel}")
+                return False
+
+        # 기존 마스킹 해제 로직
         if not self.unlock_masking(tracking_number, key1, key2, selector, output_path):
             return False
         return True

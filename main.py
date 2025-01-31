@@ -1,9 +1,12 @@
-import post_crawler as pc
 import os
 import pandas as pd
+from crawler_module import Crawler  # 클래스 직접 import
+from logger import log_error
+import time
 
-data_xlsx = "data.xlsx"
+data_xlsx = "test.xlsx"
 out_dir = "output_dir_pdf"
+
 
 df = pd.read_excel(data_xlsx)  # 엑셀 파일을 DataFrame으로 읽기
 count = 1
@@ -11,10 +14,11 @@ count = 1
 if out_dir not in os.listdir():
     os.mkdir(out_dir)
 
-crawler = pc.crawler()
+crawler = Crawler()
 
 done_list = []
 temp = os.listdir(out_dir)
+
 
 # 엑셀 파일의 각 행(row)을 반복
 for index, row in df.iterrows():
@@ -29,9 +33,9 @@ for index, row in df.iterrows():
 
     # 등기번호 유효성 검사 (숫자 13자리)
     if len(tracking_number) != 13 or not tracking_number.isdigit():
-        print(f"Invalid tracking number: {tracking_number}")
+        log_error(index, tracking_number, mail_merge, "등기번호 조회 요건(13자리 수)에 맞지 않는 등기번호 입니다.")
+        time.sleep(0.5)
         continue
-
     # 중복 처리 방지
     if tracking_number + ".pdf" in done_list:
         print(f"Already processed: {tracking_number}")
@@ -46,24 +50,13 @@ for index, row in df.iterrows():
         # (주) 또는 ㈜가 없으면 두 번째 글자 추출
         key2 = mail_merge[1] if len(mail_merge) > 1 else ""
 
-    # key2가 유효하지 않으면 건너뜀
-    if not key2:
-        print(f"Invalid key2 for {mail_merge}")
-        continue
-
     key1 = "울"  # 고정값
 
     # 크롤링 실행
     try:
-        if not crawler.save_pdf_file_withhout_masking(tracking_number, key1, key2, selector, output_path):
-            print(f"{tracking_number} has wrong information")
-            out_log = f"line was {mail_merge} key2 was {key2}\n\n"
-            print(out_log)
-            with open("errored_ids.txt", "a") as error_log:
-                error_log.write(out_log)
-            continue
+        crawler.save_pdf_file_withhout_masking(index, tracking_number, key1, key2, selector, output_path)
     except Exception as e:
-        print(f"Error occurred for {tracking_number}: {e}")
+        print(f"❌ Error: {e}")
         continue
 
     count += 1
